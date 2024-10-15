@@ -34,15 +34,8 @@ class PonyDatabase:
     def actualizar_anexo(self):
         query = """
         MATCH (p:Pony)
-        WHERE NOT (p)-[:AMIGOS]->()
-        SET p.anexo = 'Por completar';
-        """
-        self.run_query(query)
-
-        query = """
-        MATCH (p:Pony)
-        MATCH (p)-[:AMIGOS]->(amigos)
-        WITH p, COUNT(amigos) AS num_amigos
+        OPTIONAL MATCH (p)-[r:AMIGOS]->(amigos)
+        WITH p, COUNT(r) AS num_amigos
         SET p.anexo = CASE
             WHEN p.tipo = 'Unicornio' AND num_amigos >= 3 THEN 'Sociable'
             WHEN p.tipo = 'Unicornio' AND num_amigos = 2 THEN 'Reservado'
