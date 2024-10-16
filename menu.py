@@ -13,6 +13,7 @@ class PonyDatabase:
             result = session.run(query, parameters)
             return [record for record in result]
 
+    # 1.
     def agregar_pony(self, nombre, color, tipo, habilidad, cutiemark, gustos, bebida):
         query = """
         MERGE (p:Pony { nombre: $nombre, color: $color, tipo: $tipo, habilidad: $habilidad, cutiemark: $cutiemark, gusto: $gustos, bebida: $bebida })
@@ -31,6 +32,20 @@ class PonyDatabase:
         MERGE (p)-[:AMIGOS]->(v)
         """, {"nombre": nombre})
 
+    # 2.
+    def city_population(self, ciudad):
+        query = """
+        MATCH (c:Ciudad {nombre: $ciudad})<-[:VIVE_EN]-(p:Pony)
+        WHERE p.tipo = 'Unicornio' OR p.tipo = 'Pony terrestre' OR p.tipo = 'Pegaso'
+        RETURN 
+            COUNT(DISTINCT CASE WHEN p.tipo = 'Unicornio' THEN 1 END) AS unicornios,
+            COUNT(DISTINCT CASE WHEN p.tipo = 'Pony terrestre' THEN 1 END) AS pony_terrestres,
+            COUNT(DISTINCT CASE WHEN p.tipo = 'Pegaso' THEN 1 END) AS pegasos
+        """
+        result = self.run_query(query, {"ciudad": ciudad})
+        return result
+
+    # 3.
     def actualizar_anexo(self):
         query = """
         MATCH (p:Pony)
@@ -47,8 +62,26 @@ class PonyDatabase:
         END;
         """
         self.run_query(query)
+    
+    # 4.
+    def camino_mas_corto(self):
+        # Solicitar los nombres de los ponis por consola
+        nombre_pony1 = input("Ingrese el nombre del primer pony: ")
+        nombre_pony2 = input("Ingrese el nombre del segundo pony: ")
 
+        # Construir la consulta Cypher
+        query = """
+        MATCH (p1:Pony {nombre: $nombre_pony1}), (p2:Pony {nombre: $nombre_pony2}),
+                path = shortestPath((p1)-[:AMIGOS*]-(p2))
+        RETURN length(path) AS longitud, [n IN nodes(path) | n.nombre] AS nodos
+        """
 
+        # Ejecutar la consulta
+        result = self.run_query(query, {"nombre_pony1": nombre_pony1, "nombre_pony2": nombre_pony2})
+
+        return result
+
+    # 5.
     def amigos_de_amigos(self, nombre):
         query = """
         MATCH (p:Pony {nombre: $nombre})-[:AMIGOS]->(amigo)-[:AMIGOS]->(amigos_de_amigos)
@@ -59,6 +92,7 @@ class PonyDatabase:
         result = self.run_query(query, {"nombre": nombre})
         return result
     
+    # 7.
     def amigos_unidireccionales(self):
         query = """
         MATCH (p1:Pony)-[:AMIGOS]->(p2:Pony)
@@ -68,6 +102,7 @@ class PonyDatabase:
         result = self.run_query(query)
         return result
     
+    # 9.
     def enemigos_vs_colaboraciones(self):
         query = """
         MATCH (p:Pony)
@@ -95,7 +130,9 @@ def menu():
     print("")
     print("Selecciona una de las opciones:")
     print("1. Agregar un pony amigo de Vinyl Scratch")
+    print("2. Ver la cantidad de pegasos, ponis terrestres y unicornios en una ciudad")
     print("3. Actualizar el campo 'anexo'")
+    print("4. Encontrar el camino más corto entre dos ponys")
     print("5. Encontrar los amigos de los amigos de un pony")
     print("7. Relaciones Unidireccionales")
     print("9. Ponis con más enemigos que colaboraciones")
@@ -132,11 +169,35 @@ if __name__ == "__main__":
             db.agregar_pony(nombre, color, tipo, habilidad, cutiemark, gustos, bebida)
             print("")
             print(f"Pony {nombre} agregado y ahora es amigo de Vinyl Scratch.")
+        
+        elif opcion == "2":
+            nombre_ciudad = input("Ingrese el nombre de la ciudad para ver la población de ponys: ")
+            resultado = db.city_population(nombre_ciudad)
+            if resultado:
+                print(resultado)
+                print("")
+                print(f"Población de ponys en {nombre_ciudad}:")
+                print(f"Unicornios: {resultado[0]['unicornios']}")
+                print(f"Pony terrestres: {resultado[0]['pony_terrestres']}")
+                print(f"Pegasos: {resultado[0]['pegasos']}")
+            else:
+                print(f"No se encontraron ponys en la ciudad {nombre_ciudad}.")
 
         elif opcion == "3":
             db.actualizar_anexo()
             print("")
             print("Campo 'anexo' actualizado para todos los ponys.")
+
+        elif opcion == "4":
+            resultado = db.camino_mas_corto()
+            if resultado:
+                print("")
+                print("Camino más corto entre los ponys:")
+                for record in resultado:
+                    print(f"Longitud del camino: {record['longitud']}")
+                    print(f"Nodos en el camino: {record['nodos']}")
+            else:
+                print("No existe relación")
 
         elif opcion == "5":
             nombre = input("Ingrese el nombre del pony para encontrar sus amigos de los amigos: ")
