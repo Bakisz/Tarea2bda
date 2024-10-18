@@ -38,9 +38,9 @@ class PonyDatabase:
         MATCH (c:Ciudad {nombre: $ciudad})<-[:VIVE_EN]-(p:Pony)
         WHERE p.tipo = 'Unicornio' OR p.tipo = 'Pony terrestre' OR p.tipo = 'Pegaso'
         RETURN 
-            COUNT(DISTINCT CASE WHEN p.tipo = 'Unicornio' THEN 1 END) AS unicornios,
-            COUNT(DISTINCT CASE WHEN p.tipo = 'Pony terrestre' THEN 1 END) AS pony_terrestres,
-            COUNT(DISTINCT CASE WHEN p.tipo = 'Pegaso' THEN 1 END) AS pegasos
+            COUNT(DISTINCT CASE WHEN p.tipo = 'Unicornio' THEN p END) AS unicornios,
+            COUNT(DISTINCT CASE WHEN p.tipo = 'Pony terrestre' THEN p END) AS pony_terrestres,
+            COUNT(DISTINCT CASE WHEN p.tipo = 'Pegaso' THEN p END) AS pegasos
         """
         result = self.run_query(query, {"ciudad": ciudad})
         return result
@@ -65,18 +65,15 @@ class PonyDatabase:
     
     # 4.
     def camino_mas_corto(self):
-        # Solicitar los nombres de los ponis por consola
         nombre_pony1 = input("Ingrese el nombre del primer pony: ")
         nombre_pony2 = input("Ingrese el nombre del segundo pony: ")
 
-        # Construir la consulta Cypher
         query = """
         MATCH (p1:Pony {nombre: $nombre_pony1}), (p2:Pony {nombre: $nombre_pony2}),
                 path = shortestPath((p1)-[:AMIGOS*]-(p2))
         RETURN length(path) AS longitud, [n IN nodes(path) | n.nombre] AS nodos
         """
 
-        # Ejecutar la consulta
         result = self.run_query(query, {"nombre_pony1": nombre_pony1, "nombre_pony2": nombre_pony2})
 
         return result
@@ -92,6 +89,16 @@ class PonyDatabase:
         result = self.run_query(query, {"nombre": nombre})
         return result
     
+    # 6.
+    def ponis_con_habilidad_magia(self):
+        query = """
+        MATCH (p:Pony)
+        WHERE toLower(p.habilidad) CONTAINS 'magia'
+        RETURN p.nombre AS nombre, p.habilidad AS habilidad;
+        """
+        result = self.run_query(query)
+        return result
+    
     # 7.
     def amigos_unidireccionales(self):
         query = """
@@ -102,6 +109,17 @@ class PonyDatabase:
         result = self.run_query(query)
         return result
     
+    # 8.
+    def ponis_con_gustos(self, tipo_pony):
+        query = """
+        MATCH (p:Pony {tipo: $tipo_pony})
+        RETURN
+            COUNT(DISTINCT CASE WHEN p.bebida = 'Coca Cola' THEN p END) AS coca_cola,
+            COUNT(DISTINCT CASE WHEN p.bebida = 'Sprite' THEN p END) AS sprite;
+        """
+        result = self.run_query(query, {"tipo_pony": tipo_pony})
+        return result
+
     # 9.
     def enemigos_vs_colaboraciones(self):
         query = """
@@ -125,6 +143,17 @@ class PonyDatabase:
         resultado_2 = self.run_query(query)
         
         return resultado_1 + resultado_2
+    
+    # 10.
+    def ponis_con_gusto_coca_y_amigo_sprite(self):
+        query = """
+        MATCH (p1:Pony)-[:AMIGOS]->(p2:Pony {bebida: 'Sprite'})
+        WHERE p1.bebida = 'Coca Cola'
+        RETURN p1.nombre AS nombre;
+        """
+        result = self.run_query(query)
+        return result
+
 
 def menu():
     print("")
@@ -134,9 +163,12 @@ def menu():
     print("3. Actualizar el campo 'anexo'")
     print("4. Encontrar el camino más corto entre dos ponys")
     print("5. Encontrar los amigos de los amigos de un pony")
+    print("6. Ponis con habilidades relacionadas a la magia")
     print("7. Relaciones Unidireccionales")
+    print("8. Ponis con gustos de bebida Coca Cola o Sprite")
     print("9. Ponis con más enemigos que colaboraciones")
-    print("10. Salir")
+    print("10. Ponis que tienen preferencia por Coca-Cola y que tengan al menos un amigo pony terrestre que prefiera Sprite")
+    print("11. Salir")
     opcion = input("Seleccione una opción: ")
     return opcion
 
@@ -150,7 +182,6 @@ def solicitar_datos_pony():
     gustos = input("Ingrese los gustos del pony: ")
     bebida = input("Ingrese la bebida favorita del pony (Coca Cola o Sprite): ")
     return nombre, color, tipo, habilidad, cutiemark, gustos, bebida
-
 
 
 if __name__ == "__main__":
@@ -174,7 +205,6 @@ if __name__ == "__main__":
             nombre_ciudad = input("Ingrese el nombre de la ciudad para ver la población de ponys: ")
             resultado = db.city_population(nombre_ciudad)
             if resultado:
-                print(resultado)
                 print("")
                 print(f"Población de ponys en {nombre_ciudad}:")
                 print(f"Unicornios: {resultado[0]['unicornios']}")
@@ -210,6 +240,16 @@ if __name__ == "__main__":
             else:
                 print(f"{nombre} no tiene amigos de amigos para mostrar.")
 
+        elif opcion == "6":
+            resultado = db.ponis_con_habilidad_magia()
+            if resultado:
+                print("")
+                print("Ponis con habilidades relacionadas a la magia:")
+                for record in resultado:
+                    print(f"{record['nombre']} tiene la habilidad {record['habilidad']}.")
+            else:
+                print("No se encontraron ponis con habilidades relacionadas a la magia.")
+
         elif opcion == "7":
             resultado = db.amigos_unidireccionales()
             if resultado:
@@ -219,6 +259,17 @@ if __name__ == "__main__":
                     print(f"{record['pony']} es amigo de {record['amigo']} pero no viceversa.")
             else:
                 print("No se encontraron relaciones de amistad unidireccionales.")
+
+        elif opcion == "8":
+            tipo_pony = input("Ingrese el tipo de pony (Alicornio, Pegaso, Unicornio, Pony terrestre): ")
+            resultado = db.ponis_con_gustos(tipo_pony)
+            if resultado:
+                print("")
+                print(f"Ponis de tipo {tipo_pony} con gustos de bebida Coca Cola o Sprite:")
+                print(f"Coca Cola: {resultado[0]['coca_cola']}")
+                print(f"Sprite: {resultado[0]['sprite']}")
+            else:
+                print(f"No se encontraron ponis de tipo {tipo_pony} con gustos de bebida Coca Cola o Sprite.")
 
         elif opcion == "9":
             resultado = db.enemigos_vs_colaboraciones()
@@ -231,6 +282,19 @@ if __name__ == "__main__":
                 print("No se encontraron ponis con más enemigos que colaboraciones.")
 
         elif opcion == "10":
+            resultado = db.ponis_con_gusto_coca_y_amigo_sprite()
+            datos = [record[0] for record in resultado]
+            no_repetidos = list(set(datos))
+
+            if resultado:
+                print("")
+                print("Ponis que prefieren Coca-Cola y tienen al menos un amigo que prefiere Sprite:")
+                for pony in no_repetidos:
+                    print(pony)
+            else:
+                print("No se encontraron ponis que prefieren Coca-Cola y tienen al menos un amigo que prefiere Sprite.")
+
+        elif opcion == "11":
             print("")
             print("Saliendo del programa...")
             break
